@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Player from "./Player";
 import Pillar from "./Pillar";
 import GameOver from "./GameOver";
@@ -7,6 +7,9 @@ import "./Game.css";
 const PLAYER_SIZE = 55;
 const PILLAR_WIDTH = 90;
 const PILLAR_GAP = 200;
+
+const GAME_WIDTH = window.innerWidth;
+const GAME_HEIGHT = window.innerHeight;
 
 const friends = [
   "/friend1.jpg",
@@ -17,13 +20,14 @@ const friends = [
 ];
 
 function Game({ playerImage }) {
-    const [highScore, setHighScore] = useState(
+  const [score, setScore] = useState(0);
+  const [highScore, setHighScore] = useState(
     Number(localStorage.getItem("highScore")) || 0
-    );
-    const [score, setScore] = useState(0);
-    const timerRef = useRef(null);
-  const GAME_WIDTH = window.innerWidth;
-  const GAME_HEIGHT = window.innerHeight;
+  );
+  const [playerY, setPlayerY] = useState(250);
+  const [pillars, setPillars] = useState([]);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   const playerYRef = useRef(250);
   const gravity = useRef(0);
@@ -31,36 +35,38 @@ function Game({ playerImage }) {
   const frameRef = useRef(0);
   const pillarsRef = useRef([]);
   const gameOverTriggered = useRef(false);
+  const timerRef = useRef(null);
 
   const jumpSoundRef = useRef(null);
   const gameOverSoundRef = useRef(null);
 
-  const [playerY, setPlayerY] = useState(250);
-  const [pillars, setPillars] = useState([]);
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
-
-  // preload sounds
+  // 🎵 Preload sounds
   useEffect(() => {
-    if (!isGameOver) {
-        timerRef.current = setInterval(() => {
-        setScore((prev) => prev + 1);
-        }, 1000);
-    }
     jumpSoundRef.current = new Audio("/jump.mp3");
-
     gameOverSoundRef.current = new Audio("/gameover.mp3");
     gameOverSoundRef.current.loop = true;
+  }, []);
+
+  // 🕒 Score timer
+  useEffect(() => {
+    if (!isGameOver) {
+      timerRef.current = setInterval(() => {
+        setScore((prev) => prev + 1);
+      }, 1000);
+    }
     return () => clearInterval(timerRef.current);
   }, [isGameOver]);
 
   const unlockAudio = () => {
     if (!audioUnlocked && jumpSoundRef.current) {
-      jumpSoundRef.current.play().then(() => {
-        jumpSoundRef.current.pause();
-        jumpSoundRef.current.currentTime = 0;
-        setAudioUnlocked(true);
-      }).catch(() => {});
+      jumpSoundRef.current
+        .play()
+        .then(() => {
+          jumpSoundRef.current.pause();
+          jumpSoundRef.current.currentTime = 0;
+          setAudioUnlocked(true);
+        })
+        .catch(() => {});
     }
   };
 
@@ -86,39 +92,43 @@ function Game({ playerImage }) {
     };
   };
 
-  const gameOver = () => {
+  // ✅ FIXED: wrap gameOver in useCallback
+  const gameOver = useCallback(() => {
     if (gameOverTriggered.current) return;
     gameOverTriggered.current = true;
 
     cancelAnimationFrame(animationRef.current);
+    clearInterval(timerRef.current);
     gravity.current = 0;
 
-    // stop jump sound
     if (jumpSoundRef.current) {
       jumpSoundRef.current.pause();
       jumpSoundRef.current.currentTime = 0;
     }
-    clearInterval(timerRef.current);
-    // setTimeout(() => {
-      setIsGameOver(true);
-      if (score > highScore) {
-        setHighScore(score);
-        localStorage.setItem("highScore", score);
-    }
 
-      if (audioUnlocked && gameOverSoundRef.current) {
-        gameOverSoundRef.current.currentTime = 0;
-        gameOverSoundRef.current.play().catch(() => {});
+    setHighScore((prev) => {
+      if (score > prev) {
+        localStorage.setItem("highScore", score);
+        return score;
       }
-    // }, 800);
-  };
+      return prev;
+    });
+
+    setIsGameOver(true);
+
+    if (audioUnlocked && gameOverSoundRef.current) {
+      gameOverSoundRef.current.currentTime = 0;
+      gameOverSoundRef.current.play().catch(() => {});
+    }
+  }, [score, audioUnlocked]);
 
   const restart = () => {
-    playerYRef.current = 250;   // 🔥 IMPORTANT FIX
+    playerYRef.current = 250;
     gravity.current = 0;
     frameRef.current = 0;
     pillarsRef.current = [];
     gameOverTriggered.current = false;
+
     setScore(0);
     setPlayerY(250);
     setPillars([]);
@@ -130,52 +140,42 @@ function Game({ playerImage }) {
     }
   };
 
+  // ✅ Now no ESLint warning
   useEffect(() => {
     if (isGameOver) return;
 
     const loop = () => {
       gravity.current += 0.5;
       playerYRef.current += gravity.current;
-
       const currentY = playerYRef.current;
 
-      // floor & ceiling
-      if (
-        currentY <= 0 ||
-        currentY + PLAYER_SIZE >= GAME_HEIGHT
-      ) {
+      if (currentY <= 0 || currentY + PLAYER_SIZE >= GAME_HEIGHT) {
         gameOver();
         return;
       }
 
-      // move pillars
       pillarsRef.current = pillarsRef.current.map((pillar) => ({
         ...pillar,
         x: pillar.x - 4
       }));
 
-      // create pillar
       if (frameRef.current % 110 === 0) {
         pillarsRef.current.push(createPillar());
       }
 
-      // remove offscreen
       pillarsRef.current = pillarsRef.current.filter(
         (pillar) => pillar.x > -PILLAR_WIDTH
       );
 
-      // accurate collision
       for (let pillar of pillarsRef.current) {
         const playerX = 40;
         const playerRight = playerX + PLAYER_SIZE;
         const pillarRight = pillar.x + PILLAR_WIDTH;
 
         const horizontal =
-          playerRight > pillar.x &&
-          playerX < pillarRight;
+          playerRight > pillar.x && playerX < pillarRight;
 
         if (horizontal) {
-          // small tolerance (makes game fair)
           const tolerance = 4;
 
           const hitTop =
@@ -192,21 +192,19 @@ function Game({ playerImage }) {
         }
       }
 
-      // render
       setPlayerY(playerYRef.current);
       setPillars([...pillarsRef.current]);
 
       frameRef.current++;
-      animationRef.current =
-        requestAnimationFrame(loop);
+      animationRef.current = requestAnimationFrame(loop);
     };
 
-    animationRef.current =
-      requestAnimationFrame(loop);
+    animationRef.current = requestAnimationFrame(loop);
 
     return () =>
       cancelAnimationFrame(animationRef.current);
-  }, [isGameOver]);
+
+  }, [isGameOver, gameOver]); // ✅ gameOver added
 
   return (
     <div
@@ -220,9 +218,8 @@ function Game({ playerImage }) {
         jump();
       }}
     >
-        <div className="score">
-            {score}s
-        </div>
+      <div className="score">{score}s</div>
+
       <Player y={playerY} playerImage={playerImage} />
 
       {pillars.map((pillar, index) => (
@@ -231,11 +228,11 @@ function Game({ playerImage }) {
 
       {isGameOver && (
         <GameOver
-            restart={restart}
-            score={score}
-            highScore={highScore}
+          restart={restart}
+          score={score}
+          highScore={highScore}
         />
-        )}
+      )}
     </div>
   );
 }
