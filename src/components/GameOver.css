@@ -1,0 +1,96 @@
+.gameover {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 85%;
+  max-width: 350px;
+
+  transform: translate(-50%, -50%);
+  text-align: center;
+
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(15px);
+
+  border-radius: 25px;
+  padding: 20px;
+
+  z-index: 100;
+  animation: fadeIn 0.4s ease;
+}
+
+/* Video styling */
+.video-wrapper {
+  width: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+
+.video-wrapper video {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Text */
+.gameover h1 {
+  color: #ffcc00;
+  font-size: 26px;
+  margin-bottom: 15px;
+  letter-spacing: 2px;
+}
+
+/* Button */
+.gameover button {
+  padding: 10px 25px;
+  font-size: 16px;
+  font-weight: bold;
+
+  border: none;
+  border-radius: 20px;
+
+  background: linear-gradient(135deg, #ffcc00, #ffaa00);
+  color: black;
+
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.gameover button:active {
+  transform: scale(0.95);
+}
+.score-box {
+  display: flex;
+  justify-content: space-between;
+  margin: 15px 0;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.score-box div {
+  flex: 1;
+  text-align: center;
+}
+
+.score-box p {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.score-box h2 {
+  font-size: 22px;
+  margin-top: 5px;
+  color: #ffcc00;
+}
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -45%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}

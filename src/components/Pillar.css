@@ -1,0 +1,26 @@
+.pillar {
+  position: absolute;
+  width: 90px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: yellow;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 1;
+}
+
+.pillar img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.top {
+  top: 0;
+}
+
+.bottom {
+  position: absolute;
+  bottom: 0;
+}
